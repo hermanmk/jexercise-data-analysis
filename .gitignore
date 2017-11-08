@@ -50,6 +50,9 @@ coverage.xml
 *.mo
 *.pot
 
+# Jupyter stuff:
+.ipynb_checkpoints/
+
 # Django stuff:
 *.log
 local_settings.py
