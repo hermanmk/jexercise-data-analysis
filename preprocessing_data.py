@@ -152,3 +152,16 @@ def patching_source_code(df):
         df['SourceCode' + file_number] = patched_series
         df['character_diff' + file_number] = character_diff_series
         print('#'*20)
+
+
+def read_and_preprocess_from_csv(path):
+    """This reads the DataFrame from the given CSV file and handles all the common preprocessing
+    :param path:
+    :return:
+    """
+    df = get_df_from_csv(path)
+    patching_source_code(df)
+    fill_nan_columns(df)
+    create_relative_time_column(df)
+    aggregate_columns(df)
+    return df
