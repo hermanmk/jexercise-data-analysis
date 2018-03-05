@@ -3,6 +3,7 @@ from difflib import Differ
 
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
 
 
 def create_relative_time_column(df):
@@ -57,15 +58,6 @@ def aggregate_columns(df):
 
 
 def patch(original, edit, start, end):
-    print('Original:\n', original)
-    print('Before:\n', original[:start])
-    print('Inserted:\n', edit)
-    print('After:\n', original[end + 1:])
-    print('Start:', start)
-    print('End:', end)
-    print(len(original))
-    print(len(edit))
-    print('Test:', (start == len(original) and len(edit) == 0 and abs(end + 1) == len(original)))
     if len(edit) == 0 and start == len(original) and abs(end + 1) == len(original):
         # There is no edit, and because both start and end is the same absolute value as original str length we have no deletion
         # We just return the original to prevent duplicated code
@@ -103,7 +95,6 @@ def patching_source_code(df):
     :return:
     """
     for column in df.filter(regex='^StoredString\d{1,}$').columns:
-        print(column.upper())
         # Getting a Pandas Series object for the given column. Copy because we will alter it!
         stored_string_series = df[column].copy()
         # Removing all references to "\r" (carriage return). Hacky?
@@ -137,12 +128,8 @@ def patching_source_code(df):
                     # We just fill it with the latest patched value here to always have a value, and go to next iteration
                     patched_series.iat[row_idx] = patched_series.iloc[row_idx - 1]
                     continue
-            #print('SizeMeasure:', df['SizeMeasure' + file_number].iloc[row_idx])
-            print('-'*10)
-            print('Index:', patched_series.index.values[row_idx])
             patched_series.iat[row_idx] = patch(patched_series.iloc[row_idx - 1], edit,
                                                 int(start_series.iloc[row_idx]), int(end_series.iloc[row_idx]))
-            print(patched_series.iloc[row_idx])
 
             # Get the number of edited characters (added, deleted, changed, moved etc.)
             character_diff_series.iat[row_idx] = get_diff_length(patched_series.iloc[row_idx - 1],
@@ -150,8 +137,7 @@ def patching_source_code(df):
 
         # Naming convention for the patch column
         df['SourceCode' + file_number] = patched_series
-        df['character_diff' + file_number] = character_diff_series
-        print('#'*20)
+        df['Character_diff' + file_number] = character_diff_series
 
 
 def read_and_preprocess_from_csv(path):
@@ -165,3 +151,8 @@ def read_and_preprocess_from_csv(path):
     create_relative_time_column(df)
     aggregate_columns(df)
     return df
+
+
+def scale_data(df, scaler=MinMaxScaler):
+    scaled_data = scaler().fit_transform(df)
+    return pd.DataFrame(scaled_data, index=df.index, columns=df.columns)
