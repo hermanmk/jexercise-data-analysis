@@ -1,5 +1,5 @@
 import datetime as dt
-from difflib import Differ
+from difflib import Differ, SequenceMatcher
 
 import numpy as np
 import pandas as pd
@@ -76,6 +76,22 @@ def get_diff_length(old, new):
         if i.startswith('+') or i.startswith('-'):
             length += 1
     return length
+
+
+def get_diff_length_lines(old, new):
+    old, new = old.split('\n'), new.split('\n')
+    junk = lambda x: x in " \t"
+    s = SequenceMatcher(None, old, new)
+    diff = 0
+    for i in s.get_opcodes():
+        tag, a1, a2, b1, b2 = i
+        if 'replace' in tag:
+            diff += max(len(s.a[a1:a2]), len(s.b[b1:b2]))
+        if 'delete' in tag:
+            diff += len(s.a[a1:a2])
+        if 'insert' in tag:
+            diff += len(s.b[b1:b2])
+    return diff
 
 
 def get_df_from_csv(path):
