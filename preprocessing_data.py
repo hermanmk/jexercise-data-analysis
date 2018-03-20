@@ -134,6 +134,7 @@ def patching_source_code(df):
             df['SourceCode' + file_number] = patched_series.ffill()
             continue
         character_diff_series = pd.Series(index=stored_string_series.index)
+        line_diff_series = pd.Series(index=stored_string_series.index)
         for row_idx in range(first_valid + 1, len(patched_series)):
             edit = stored_string_series.iloc[row_idx]
             if pd.isnull(edit):
@@ -150,10 +151,14 @@ def patching_source_code(df):
             # Get the number of edited characters (added, deleted, changed, moved etc.)
             character_diff_series.iat[row_idx] = get_diff_length(patched_series.iloc[row_idx - 1],
                                                                  patched_series.iloc[row_idx])
+            # Get the number of edited lines (added, deleted, changed, moved etc.)
+            line_diff_series.iat[row_idx] = get_diff_length_lines(patched_series.iloc[row_idx - 1],
+                                                                  patched_series.iloc[row_idx])
 
         # Naming convention for the patch column
         df['SourceCode' + file_number] = patched_series
         df['Character_diff' + file_number] = character_diff_series
+        df['Line_diff' + file_number] = line_diff_series
 
 
 def read_and_preprocess_from_csv(path):
