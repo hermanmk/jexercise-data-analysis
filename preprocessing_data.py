@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
+PAUSE_SECONDS = 600
+
 
 def create_relative_time_column(df):
 
@@ -12,8 +14,8 @@ def create_relative_time_column(df):
 
     for i in range(1, len(df)):
         diff = df.index[i] - df.index[i-1]
-        if diff.seconds > 600:
-            diff = dt.timedelta(seconds=600)
+        if diff.seconds > PAUSE_SECONDS:
+            diff = dt.timedelta(seconds=PAUSE_SECONDS)
         accumulated = df.Relative_time.iloc[i-1] + diff
         df.Relative_time.iat[i] = accumulated
 
