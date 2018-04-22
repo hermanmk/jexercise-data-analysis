@@ -57,6 +57,8 @@ def aggregate_columns(df):
     df['TotalSourceEdit_ErrorCount'] = df.filter(regex='^SourceEdit_ErrorCount\d{1,}$').sum(axis=1)
     # Creating a total ErrorCount column
     df['TotalErrorCount'] = df.TotalJunitTest_ErrorCount + df.TotalSourceEdit_ErrorCount
+    # Create TotalRuns
+    df['TotalRuns'] = df.JunitTest + df.Launch
 
 
 def patch(original, edit, start, end):
@@ -179,3 +181,42 @@ def read_and_preprocess_from_csv(path):
 def scale_data(df, scaler=MinMaxScaler):
     scaled_data = scaler().fit_transform(df)
     return pd.DataFrame(scaled_data, index=df.index, columns=df.columns)
+
+
+def create_only_runs_df(df):
+    return df[df.TotalRuns == 1]
+
+
+def classify_struggling(df):
+    """Algorithm for classifying struggling phases
+    """
+    minutes = 5
+    max_window = dt.timedelta(seconds=minutes * 60)
+    df['runs_last_5mins'] = np.nan
+    df['acc_div_point'] = np.nan
+    last_run = df.index.get_loc(create_only_runs_df(df).index[0])
+    for row_idx in range(last_run + 1, len(df)):
+        cur_row = df.iloc[row_idx]
+        # We get the last run
+        last_run_row = df.iloc[last_run]
+        # Accumulated line diff since last run
+        accumulated = df.filter(regex='^Line_diff\d{1,}$').loc[last_run_row.name:cur_row.name].sum().sum()
+        # Line diff from last run
+        line_diff = 0
+        for sc_col in df.filter(regex='^SourceCode\d{1,}$').columns:
+            line_diff += get_diff_length_lines(last_run_row[sc_col], cur_row[sc_col])
+        # Number of runs in the last 5 minutes
+        runs_in_period = df.loc[cur_row.name - max_window:cur_row.name].TotalRuns.sum()
+        print(runs_in_period)
+        if line_diff == 0:
+            if pd.isnull(accumulated):
+                acc_div_point = np.nan
+            else:
+                acc_div_point = 0
+        else:
+            acc_div_point = accumulated / line_diff
+        print(acc_div_point)
+        df['acc_div_point'].iat[row_idx] = acc_div_point
+        df['runs_last_5mins'].iat[row_idx] = runs_in_period
+        if cur_row.TotalRuns == 1:
+            last_run = row_idx
