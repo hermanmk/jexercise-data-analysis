@@ -187,24 +187,37 @@ def create_only_runs_df(df):
     return df[df.TotalRuns == 1]
 
 
-def classify_struggling(df):
+def classify_struggling(df, minutes=5):
     """Algorithm for classifying struggling phases
     """
-    minutes = 5
     max_window = dt.timedelta(seconds=minutes * 60)
     df['runs_last_5mins'] = np.nan
     df['acc_div_point'] = np.nan
-    last_run = df.index.get_loc(create_only_runs_df(df).index[0])
-    for row_idx in range(last_run + 1, len(df)):
+    # Selects the first of either the first run or "x minutes into the assignment"
+    #lookback_idx = min(df.index.get_loc(df[df.TotalRuns == 1].iloc[0].name),
+    #                   df.index.get_loc(df.index[0] + max_window, method='backfill'))
+    for row_idx in range(len(df)):
         cur_row = df.iloc[row_idx]
+        try:
+            # Find the look back index by going x minutes in the past
+            lookback_idx = df.index.get_loc(cur_row.name - max_window, method='pad')
+        except KeyError:
+            # KeyError happens if x minutes haven't passed yet, thus we go to the next iteration
+            continue
+        try:
+            # If there's a run since the x minute look back, use this row instead
+            lookback_idx = df.index.get_loc(df.iloc[lookback_idx:row_idx][df.TotalRuns == 1].iloc[-1].name)
+        except IndexError:
+            # IndexError happens if there are no runs since the look back period
+            pass
         # We get the last run
-        last_run_row = df.iloc[last_run]
+        lookback_row = df.iloc[lookback_idx]
         # Accumulated line diff since last run
-        accumulated = df.filter(regex='^Line_diff\d{1,}$').loc[last_run_row.name:cur_row.name].sum().sum()
+        accumulated = df.filter(regex='^Line_diff\d{1,}$').loc[lookback_row.name:cur_row.name].sum().sum()
         # Line diff from last run
         line_diff = 0
         for sc_col in df.filter(regex='^SourceCode\d{1,}$').columns:
-            line_diff += get_diff_length_lines(last_run_row[sc_col], cur_row[sc_col])
+            line_diff += get_diff_length_lines(lookback_row[sc_col], cur_row[sc_col])
         # Number of runs in the last 5 minutes
         runs_in_period = df.loc[cur_row.name - max_window:cur_row.name].TotalRuns.sum()
         print(runs_in_period)
@@ -218,5 +231,3 @@ def classify_struggling(df):
         print(acc_div_point)
         df['acc_div_point'].iat[row_idx] = acc_div_point
         df['runs_last_5mins'].iat[row_idx] = runs_in_period
-        if cur_row.TotalRuns == 1:
-            last_run = row_idx
