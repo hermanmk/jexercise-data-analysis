@@ -4,6 +4,7 @@ from difflib import Differ, SequenceMatcher
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
+import matplotlib.pyplot as plt
 
 PAUSE_SECONDS = 600
 
@@ -231,3 +232,30 @@ def classify_struggling(df, minutes=5):
         print(acc_div_point)
         df['acc_div_point'].iat[row_idx] = acc_div_point
         df['runs_last_5mins'].iat[row_idx] = runs_in_period
+
+
+def run_algorithm(assignment, hash_id, exercise, smoothing_window=5, save=True):
+    path = 'data/csv/{}/{}/{}.csv'.format(assignment, hash_id, exercise)
+    df = read_and_preprocess_from_csv(path)
+    classify_struggling(df)
+    scaled_df = scale_data(df[['acc_div_point', 'runs_last_5mins']].fillna(0))
+    df['scaled_max'] = scaled_df.max(axis=1)
+    df['scaled_max_smoothed'] = scaled_df.max(axis=1).ewm(smoothing_window).mean()
+    if save:
+        df.to_csv('data/algorithm_results/{}_{}.csv'.format(hash_id, exercise))
+    return df
+
+
+def plot_struggling(df, series_name, phase_dict, threshold=None):
+    plt.figure(figsize=(16, 6))
+    for key, slices in phase_dict.items():
+        for s in slices:
+            color = 'C0'
+            if 'Struggling' in key:
+                color = 'C1'
+            elif 'Completed' in key:
+                color = 'C2'
+            plt.plot(df[s][series_name], label=key, color=color)
+    if threshold is not None:
+        plt.plot(df.index, [0.12]*len(df.index), label='Threshold', color='C3')
+    plt.legend()
