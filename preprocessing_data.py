@@ -246,16 +246,22 @@ def run_algorithm(assignment, hash_id, exercise, smoothing_window=5, save=True):
     return df
 
 
-def plot_struggling(df, series_name, phase_dict, threshold=None):
+def plot_struggling(df, series_name, phase_dict=None, threshold=None, use_relative_time=True):
+    series = df[series_name]
+    if use_relative_time:
+        series.index = df.Active_time
     plt.figure(figsize=(16, 6))
-    for key, slices in phase_dict.items():
-        for s in slices:
-            color = 'C0'
-            if 'Struggling' in key:
-                color = 'C1'
-            elif 'Completed' in key:
-                color = 'C2'
-            plt.plot(df[s][series_name], label=key, color=color)
+    if phase_dict is None:
+        plt.plot(series, label=series_name)
+    else:
+        for key, slices in phase_dict.items():
+            for s in slices:
+                color = 'C0'
+                if 'Struggling' in key:
+                    color = 'C1'
+                elif 'Completed' in key:
+                    color = 'C2'
+                plt.plot(series[s], label=key, color=color)
     if threshold is not None:
-        plt.plot(df.index, [0.12]*len(df.index), label='Threshold', color='C3')
+        plt.plot(series.index, [threshold]*len(series.index), label='Threshold', color='C3')
     plt.legend()
