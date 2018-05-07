@@ -1,5 +1,6 @@
 import datetime as dt
 from difflib import Differ, SequenceMatcher
+from collections import OrderedDict
 
 import numpy as np
 import pandas as pd
@@ -150,8 +151,11 @@ def patching_source_code(df):
                     # We just fill it with the latest patched value here to always have a value, and go to next iteration
                     patched_series.iat[row_idx] = patched_series.iloc[row_idx - 1]
                     continue
-            patched_series.iat[row_idx] = patch(patched_series.iloc[row_idx - 1], edit,
-                                                int(start_series.iloc[row_idx]), int(end_series.iloc[row_idx]))
+            if pd.isnull(start_series.iloc[row_idx]) or pd.isnull(end_series.iloc[row_idx]):
+                patched_series.iat[row_idx] = patched_series.iloc[row_idx - 1]
+            else:
+                patched_series.iat[row_idx] = patch(patched_series.iloc[row_idx - 1], edit,
+                                                    int(start_series.iloc[row_idx]), int(end_series.iloc[row_idx]))
 
             # Get the number of edited characters (added, deleted, changed, moved etc.)
             character_diff_series.iat[row_idx] = get_diff_length(patched_series.iloc[row_idx - 1],
@@ -264,4 +268,6 @@ def plot_struggling(df, series_name, phase_dict=None, threshold=None, use_relati
                 plt.plot(series[s], label=key, color=color)
     if threshold is not None:
         plt.plot(series.index, [threshold]*len(series.index), label='Threshold', color='C3')
-    plt.legend()
+    handles, labels = plt.gca().get_legend_handles_labels()
+    unique_labels = OrderedDict(zip(labels, handles))
+    plt.legend(unique_labels.values(), unique_labels.keys())
