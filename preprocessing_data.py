@@ -222,6 +222,8 @@ def classify_struggling(df, minutes=5):
         # Line diff from last run
         line_diff = 0
         for sc_col in df.filter(regex='^SourceCode\d{1,}$').columns:
+            if pd.isnull(lookback_row[sc_col]):
+                continue
             line_diff += get_diff_length_lines(lookback_row[sc_col], cur_row[sc_col])
         # Number of runs in the last 5 minutes
         runs_in_period = df.loc[cur_row.name - max_window:cur_row.name].TotalRuns.sum()
@@ -250,10 +252,12 @@ def run_algorithm(assignment, hash_id, exercise, smoothing_window=5, save=True):
     return df
 
 
-def plot_struggling(df, series_name, phase_dict=None, threshold=None, use_relative_time=True):
+def plot_struggling(df, series_name, phase_dict=None, threshold_series=None, use_relative_time=True):
     series = df[series_name]
     if use_relative_time:
         series.index = df.Active_time
+        if threshold_series is not None:
+            threshold_series.index = df.Active_time
     plt.figure(figsize=(16, 6))
     if phase_dict is None:
         plt.plot(series, label=series_name)
@@ -266,8 +270,18 @@ def plot_struggling(df, series_name, phase_dict=None, threshold=None, use_relati
                 elif 'Completed' in key:
                     color = 'C2'
                 plt.plot(series[s], label=key, color=color)
-    if threshold is not None:
-        plt.plot(series.index, [threshold]*len(series.index), label='Threshold', color='C3')
+    if threshold_series is not None:
+        plt.plot(threshold_series, label='Threshold', color='C3')
     handles, labels = plt.gca().get_legend_handles_labels()
     unique_labels = OrderedDict(zip(labels, handles))
     plt.legend(unique_labels.values(), unique_labels.keys())
+
+
+def calculate_simple_threshold(df):
+    threshold_series = pd.Series(index=df.index)
+    total_line_diff = df.filter(regex='^Line_diff\d{1,}$').sum().sum()
+    num_source_edits = df.SourceEdit.sum()
+    num_runs = df.TotalRuns.sum()
+    num_minutes_spent = round(df.Relative_time.iloc[-1].seconds / 60)
+    threshold_series[:] = num_minutes_spent / (total_line_diff + num_runs)
+    return threshold_series
