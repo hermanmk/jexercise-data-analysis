@@ -42,5 +42,6 @@ runs the algorithm and optionally saves the result in a CSV file.
 
 ## Recreating the Python environment using conda
 Requires **conda**: https://conda.io/docs/
+
 the `./conda/` folder contains the environment.yml file which can be used to recreate the conda environment we used during experimentation:
 `conda env create -f environment.yml`
